@@ -1,110 +1,412 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>나는 인간이다!</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>나는 인간이다! — 랜덤 미니게임 프로토타입</title>
   <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-    #gameArea { display: none; }
-    #rewardArea { font-size: 20px; margin-bottom: 20px; }
-    #timer { font-size: 18px; color: red; margin: 10px; }
-    .hidden { display: none; }
-    button { padding: 10px 20px; font-size: 16px; }
+    :root {
+      --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#10b981; --danger:#ef4444; --warn:#f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Apple SD Gothic Neo, "Apple Color Emoji", "Segoe UI Emoji", sans-serif; background:linear-gradient(180deg, #0b1020, #0a0f1c); color:var(--text); }
+    .wrap { max-width: 900px; margin: 0 auto; padding:32px 16px 56px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    h1 { margin:0; font-size: clamp(22px, 4vw, 32px); letter-spacing: -0.3px; }
+    .card { background:linear-gradient(180deg, #0f172a, #0b1222); border:1px solid #1f2937; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .col { flex:1 1 260px; }
+    .reward { font-size:18px; }
+    .reward b { color:var(--accent); }
+    .btn { appearance:none; border:none; border-radius:12px; padding:12px 18px; font-weight:700; cursor:pointer; background:linear-gradient(180deg, #22c55e, #16a34a); color:#06240f; box-shadow:0 8px 20px rgba(34,197,94,.25); transition:.15s transform,.15s filter; }
+    .btn:hover{ filter:brightness(1.05); }
+    .btn:active{ transform:translateY(1px) scale(.995); }
+    .btn.secondary{ background:linear-gradient(180deg, #64748b, #475569); color:#e2e8f0; box-shadow:none; }
+
+    .hud { display:flex; gap:12px; align-items:center; justify-content:space-between; margin:12px 0 6px; }
+    .badge { border:1px solid #334155; background:#0b1324; color:#cbd5e1; padding:6px 10px; border-radius:999px; font-size:13px; }
+    .timer { font-variant-numeric:tabular-nums; }
+    .progress { height:8px; background:#0b1324; border:1px solid #1f2a44; border-radius:999px; overflow:hidden; }
+    .progress > div { height:100%; width:100%; background:linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); transition: width .2s linear; }
+
+    .stage { font-size:14px; color:var(--muted); margin-top:0; }
+    .log { color:#cbd5e1; min-height:24px; }
+
+    /* Mini-game common */
+    #game-area { min-height:280px; display:grid; place-items:center; padding:20px; border:1px dashed #273042; border-radius:14px; }
+    .center { text-align:center; }
+
+    /* Slider Stop */
+    .slider-wrap { width:100%; max-width:580px; }
+    .bar { position:relative; height:20px; border-radius:12px; background:#0b1324; border:1px solid #20304b; overflow:hidden; }
+    .bar .target { position:absolute; top:0; height:100%; background:rgba(16,185,129,.35); border-left:2px solid #22c55e; border-right:2px solid #22c55e; }
+    .bar .cursor { position:absolute; top:0; height:100%; width:6px; background:#f59e0b; box-shadow:0 0 10px rgba(245,158,11,.6); }
+
+    /* Simon Sequence */
+    .simon { display:grid; grid-template-columns:repeat(2,120px); grid-auto-rows:120px; gap:12px; }
+    .pad { border-radius:12px; border:2px solid #1f2937; opacity:.9; cursor:pointer; }
+    .pad.on { filter:brightness(1.7); opacity:1; }
+
+    /* Typing Captcha */
+    .type { display:flex; flex-direction:column; gap:10px; align-items:center; }
+    .captcha { font-size:24px; letter-spacing:2px; padding:10px 14px; background:#0b1324; border:1px solid #23314a; border-radius:10px; transform:skewX(-6deg) rotate(-0.5deg); user-select:text; }
+    .type input { background:#0b1324; border:1px solid #23314a; color:#e5e7eb; padding:10px 12px; border-radius:10px; min-width:320px; }
+
+    /* Math Quiz */
+    .math { display:flex; gap:10px; align-items:center; }
+    .math input { background:#0b1324; border:1px solid #23314a; color:#e5e7eb; padding:10px 12px; border-radius:10px; width:160px; }
+
+    /* 3x3 Sliding Puzzle */
+    .puzzle { display:grid; grid-template-columns:repeat(3,84px); grid-auto-rows:84px; gap:8px; }
+    .tile { display:grid; place-items:center; font-weight:900; font-size:22px; border-radius:12px; border:1px solid #22314b; background:#0b1324; color:#e5e7eb; cursor:pointer; }
+    .tile.blank { background:transparent; border:1px dashed #22314b; cursor:default; }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
   </style>
 </head>
 <body>
-  <h1>나는 인간이다!</h1>
+  <div class="wrap">
+    <header>
+      <h1>나는 인간이다! <span class="stage">(랜덤 미니게임)</span></h1>
+      <button id="btn-retry" class="btn secondary" style="display:none">다시 시작</button>
+    </header>
 
-  <div id="rewardArea">이번 스테이지 보상: 🪙 100 MemeCoin</div>
-  <button id="startBtn">START</button>
-
-  <div id="gameArea">
-    <div id="timer">제한시간: <span id="timeLeft">10</span>초</div>
-    <div id="gameContent"></div>
-    <input type="text" id="answerInput" placeholder="정답 입력">
-    <button id="submitBtn">제출</button>
+    <div class="row">
+      <div class="col">
+        <div class="card">
+          <div class="reward" id="reward">이번 스테이지 보상: <b>🪙 100 MemeCoin</b></div>
+          <div class="hud">
+            <div class="badge">스테이지 <span id="stageNum">1</span> / <span id="stageTotal">3</span></div>
+            <div class="badge timer">제한시간: <span id="timeLeft">—</span>s</div>
+          </div>
+          <div class="progress"><div id="timeBar"></div></div>
+          <div id="game-area" class="card center" style="margin-top:14px;">
+            <div>
+              <p style="margin-top:8px;color:#cbd5e1">이번 스테이지에 건 보상을 확인하고 <b>시작</b>을 눌러 주세요.</p>
+              <button id="btn-start" class="btn">시작</button>
+            </div>
+          </div>
+          <div class="log mono" id="log"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" id="aiBox">
+          <div style="display:flex;align-items:center;gap:10px; margin-bottom:8px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12c0 2.793 1.146 5.318 3 7.125V22l2.227-1.115C8.875 21.612 10.397 22 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2Z" stroke="#64748b" stroke-width="1.2"/></svg>
+            <b>검증 AI</b>
+          </div>
+          <p id="aiText" style="color:#94a3b8; min-height:48px;">너는 정말… 인간이 맞나? 증명해 보시지.</p>
+        </div>
+        <div class="card">
+          <b>룰</b>
+          <ol style="margin:8px 0 0 18px; color:#cbd5e1;">
+            <li>스테이지마다 <b>랜덤 미니게임</b>이 출제됩니다.</li>
+            <li>제한시간 안에 성공하면 다음 스테이지로 진행됩니다.</li>
+            <li>모든 미니게임을 통과하면 보상을 획득합니다.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="message"></div>
-
   <script>
-    const games = [
-      { question: "3 + 5 = ?", answer: "8" },
-      { question: "12 - 7 = ?", answer: "5" },
-      { question: "단어 HUMAN을 거꾸로 쓰세요", answer: "NAMUH" }
-    ];
-    let currentGame = 0;
-    let timer;
-    let timeLeft = 10;
+    /********************
+     * 유틸
+     ********************/
+    const $ = (s, el=document) => el.querySelector(s);
+    const el = (tag, opt={}) => Object.assign(document.createElement(tag), opt);
+    const rand = (a,b)=> Math.floor(Math.random()*(b-a+1))+a;
+    const choice = (arr) => arr[Math.floor(Math.random()*arr.length)];
 
-    const startBtn = document.getElementById("startBtn");
-    const gameArea = document.getElementById("gameArea");
-    const gameContent = document.getElementById("gameContent");
-    const answerInput = document.getElementById("answerInput");
-    const submitBtn = document.getElementById("submitBtn");
-    const message = document.getElementById("message");
-    const timeLeftSpan = document.getElementById("timeLeft");
+    /********************
+     * 공통 게임 매니저
+     ********************/
+    const STAGE_COUNT = 3; // 한 세션에서 풀어야 하는 미니게임 수
+    const BASE_TIME = 18;  // 기본 제한시간(초)
 
-    function startGame() {
-      startBtn.style.display = "none";
-      gameArea.style.display = "block";
-      message.innerText = "";
-      loadGame();
+    const aiLines = {
+      intro:[
+        "너는 정말… 인간이 맞나? 증명해 보시지.",
+        "휴먼이라면 쉽겠지?", "로봇이면 곧 들통날 걸?"
+      ],
+      next:[
+        "아직은 부족해. 다음 검증이다.", "그 정도로는 인정 못 해.", "또 다른 테스트를 통과해라."
+      ],
+      fail:[
+        "하하! 인간이라면 이럴 리가?", "분석 완료… 의심지수 상승.", "재시도해 보지."
+      ],
+      clear:[
+        "인정하지. 너는… 인간이다.", "임계치 통과. 휴먼 인증!", "흥, 이번엔 운이 좋았군."
+      ],
+    };
+
+    const state = {
+      stage: 1,
+      total: STAGE_COUNT,
+      reward: 100,
+      timerId: null,
+      timeLeft: BASE_TIME,
+      minigamesPool: [],
+      current: null,
+    };
+
+    const ui = {
+      stageNum: $('#stageNum'),
+      stageTotal: $('#stageTotal'),
+      reward: $('#reward'),
+      timeLeft: $('#timeLeft'),
+      timeBar: $('#timeBar'),
+      gameArea: $('#game-area'),
+      log: $('#log'),
+      aiText: $('#aiText'),
+      btnStart: $('#btn-start'),
+      btnRetry: $('#btn-retry')
+    };
+    ui.stageTotal.textContent = state.total;
+
+    function say(type){ ui.aiText.textContent = choice(aiLines[type]); }
+
+    function setReward(){
+      // 간단한 보상 스케일링 (스테이지가 오를수록 +20)
+      const amount = 100 + (state.stage-1)*20;
+      state.reward = amount;
+      ui.reward.innerHTML = `이번 스테이지 보상: <b>🪙 ${amount} MemeCoin</b>`;
     }
 
-    function loadGame() {
-      if (currentGame >= games.length) {
-        endGame(true);
-        return;
+    function startSession(){
+      state.stage = 1; ui.stageNum.textContent = state.stage; setReward(); ui.log.textContent = '';
+      say('intro');
+      // 미니게임 풀에서 중복 없이 뽑기
+      state.minigamesPool = shufflePick([...Object.keys(minigames)], state.total);
+      ui.btnRetry.style.display = 'none';
+      startStage();
+    }
+
+    function startStage(){
+      destroyCurrentGame();
+      const key = state.minigamesPool[state.stage-1];
+      const game = minigames[key];
+      state.current = { key, game, cleanup: null };
+
+      setReward();
+      const timeLimit = Math.max(8, Math.round(BASE_TIME - (state.stage-1)*3));
+      startTimer(timeLimit, () => failStage('시간 초과'));
+      ui.gameArea.innerHTML = '';
+      const wrap = el('div'); ui.gameArea.appendChild(wrap);
+      state.current.cleanup = game.start(wrap, successStage, failStage);
+      ui.log.textContent = `[${game.name}] 제한시간 ${timeLimit}s 내 성공하세요.`;
+    }
+
+    function successStage(){
+      stopTimer();
+      say('next');
+      ui.log.textContent = `성공! 아직 인간임을 증명하지 못했습니다… 다음 검증으로 넘어갑니다.`;
+      state.stage++;
+      if(state.stage > state.total){
+        clearSession(true);
+      } else {
+        ui.stageNum.textContent = state.stage;
+        setTimeout(startStage, 900);
       }
-      const g = games[currentGame];
-      gameContent.innerText = g.question;
-      answerInput.value = "";
-      startTimer();
     }
 
-    function startTimer() {
-      clearInterval(timer);
-      timeLeft = 10;
-      timeLeftSpan.innerText = timeLeft;
-      timer = setInterval(() => {
-        timeLeft--;
-        timeLeftSpan.innerText = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(timer);
-          endGame(false);
-        }
+    function failStage(reason){
+      stopTimer(); say('fail');
+      ui.log.textContent = `실패(${reason}). AI는 여전히 당신을 의심합니다…`;
+      clearSession(false);
+    }
+
+    function clearSession(success){
+      destroyCurrentGame();
+      ui.gameArea.innerHTML = '';
+      const box = el('div');
+      const title = el('h2', { textContent: success ? '🎉 인간 인증 성공!' : '⏰ 인증 실패' });
+      const msg = el('p', { innerHTML: success ? `보상 획득: <b>🪙 ${totalReward()} MemeCoin</b>` : '다시 시도해 보시겠습니까?' });
+      const retry = el('button', { className:'btn', textContent: '다시 시작' });
+      retry.addEventListener('click', () => { ui.btnRetry.style.display='none'; startSession(); });
+      box.append(title, msg, retry);
+      ui.gameArea.appendChild(box);
+      ui.btnRetry.style.display = 'inline-block';
+      if(success) say('clear');
+    }
+
+    function totalReward(){
+      // 간단한 합산(100,120,140 …)
+      let sum = 0; for(let i=1;i<=state.total;i++) sum += 100 + (i-1)*20; return sum;
+    }
+
+    function startTimer(seconds, onTimeout){
+      state.timeLeft = seconds; updateTimerUI();
+      stopTimer();
+      state.timerId = setInterval(()=>{
+        state.timeLeft--; updateTimerUI();
+        if(state.timeLeft <= 0){ stopTimer(); onTimeout && onTimeout(); }
       }, 1000);
     }
+    function stopTimer(){ if(state.timerId){ clearInterval(state.timerId); state.timerId = null; } }
+    function updateTimerUI(){ ui.timeLeft.textContent = Math.max(0, state.timeLeft); ui.timeBar.style.width = (100*state.timeLeft/Math.max(1,BASE_TIME)).toFixed(0)+'%'; }
 
-    function checkAnswer() {
-      const g = games[currentGame];
-      if (answerInput.value.trim().toUpperCase() === g.answer.toUpperCase()) {
-        clearInterval(timer);
-        currentGame++;
-        if (currentGame < games.length) {
-          message.innerText = "아직 인간임을 증명하지 못했습니다... 다음 문제!";
-          setTimeout(loadGame, 1000);
-        } else {
-          endGame(true);
+    function destroyCurrentGame(){ try{ state.current?.cleanup?.(); }catch(e){} }
+    function shufflePick(arr, k){
+      for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+      return arr.slice(0,k);
+    }
+
+    /********************
+     * 미니게임 모듈
+     ********************/
+    const minigames = {
+      // 1) Slider Stop — 움직이는 커서를 타깃 범위에 멈추기
+      slider: {
+        name: '정밀 타이밍: 슬라이더 정지',
+        start(root, done, fail){
+          const wrap = el('div', { className:'slider-wrap' });
+          const bar = el('div', { className:'bar' });
+          const target = el('div', { className:'target' });
+          const cursor = el('div', { className:'cursor' });
+          const btn = el('button', { className:'btn', textContent:'지금 멈추기', style:'margin-top:14px' });
+          const tip = el('div', { style:'margin:10px 0; color:#cbd5e1', textContent:'노란 커서를 초록 영역 안에 멈추세요.' });
+
+          const width = 500; bar.style.width = width+'px';
+          const targetW = rand(60,110);
+          const targetX = rand(20, width-targetW-20);
+          target.style.left = targetX+'px'; target.style.width = targetW+'px';
+
+          let x = 0, dir = 1, speed = rand(4,7); // px per frame
+          let raf;
+          function tick(){ x += dir*speed; if(x<=0||x>=width-6){ dir*=-1; x += dir*speed; } cursor.style.left = x+'px'; raf = requestAnimationFrame(tick); }
+          tick();
+
+          btn.addEventListener('click', ()=>{
+            cancelAnimationFrame(raf);
+            const ok = (x>=targetX && x<=targetX+targetW-6);
+            ok ? done() : fail('타깃 미스');
+          });
+          bar.append(target, cursor); wrap.append(tip, bar, btn); root.appendChild(wrap);
+          return ()=> cancelAnimationFrame(raf);
         }
-      } else {
-        message.innerText = "오답! 다시 시도하세요.";
-      }
-    }
+      },
 
-    function endGame(success) {
-      gameArea.style.display = "none";
-      if (success) {
-        message.innerText = "🎉 축하합니다! 당신은 인간임을 증명했습니다!\n보상 획득: 🪙 100 MemeCoin";
-      } else {
-        message.innerText = "⏰ 실패! AI는 여전히 당신을 의심합니다...";
-        startBtn.style.display = "inline-block";
-      }
-    }
+      // 2) Simon — 제시된 색 순서를 기억해 클릭
+      simon: {
+        name: '순서 기억: 시몬 게임',
+        start(root, done, fail){
+          const cont = el('div', { className:'simon' });
+          const colors = [
+            {key:0, clr:'#ef4444'}, {key:1, clr:'#22c55e'}, {key:2, clr:'#3b82f6'}, {key:3, clr:'#f59e0b'}
+          ];
+          const pads = colors.map(c=>{
+            const d = el('div', { className:'pad', style:`background:${c.clr}` }); d.dataset.key=c.key; cont.appendChild(d); return d;
+          });
+          const seq = Array.from({length: rand(3,5)}, ()=> rand(0,3));
+          let idx=0, showing=true;
 
-    startBtn.addEventListener("click", startGame);
-    submitBtn.addEventListener("click", checkAnswer);
+          function flash(i){ pads[i].classList.add('on'); setTimeout(()=>pads[i].classList.remove('on'), 320); }
+          async function play(){ showing=true; idx=0; for(const k of seq){ flash(k); await wait(420); } showing=false; }
+          function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+          pads.forEach(p=>p.addEventListener('click', ()=>{
+            if(showing) return;
+            const k = Number(p.dataset.key); flash(k);
+            if(k !== seq[idx]) return fail('순서 오류');
+            idx++; if(idx===seq.length) done();
+          }));
+
+          root.appendChild(cont); play();
+          return ()=>{};
+        }
+      },
+
+      // 3) Typing Captcha — 제시 문장을 정확히 타이핑
+      typing: {
+        name: '정확 타이핑: 캡차 문장 입력',
+        start(root, done, fail){
+          const candidates = [
+            'I am definitely HUMAN, not a r0b0t.',
+            'CAPTCHA? Easy. Humans > Bots!',
+            'Time & memory separate humans from bots.'
+          ];
+          const text = choice(candidates);
+          const box = el('div', { className:'type' });
+          const cap = el('div', { className:'captcha', textContent:text });
+          const input = el('input', { placeholder:'문장을 정확히 입력하세요 (대/소문자, 공백 포함)' });
+          const btn = el('button', { className:'btn', textContent:'제출' });
+          btn.addEventListener('click', ()=>{
+            input.value === text ? done() : fail('오탈자');
+          });
+          box.append(cap, input, btn); root.appendChild(box); input.focus();
+          return ()=>{};
+        }
+      },
+
+      // 4) Math Quiz — 간단 연산 맞추기
+      math: {
+        name: '산수 퀴즈: 정답 제출',
+        start(root, done, fail){
+          const a = rand(10,49), b = rand(2,9), ops = ['+','-','×'];
+          const op = choice(ops);
+          const ans = op==='+'? a+b : op==='-'? a-b : a*b;
+          const wrap = el('div', { className:'math' });
+          const q = el('div', { style:'font-size:26px', textContent:`${a} ${op} ${b} = ?` });
+          const input = el('input', { type:'number', placeholder:'정답' });
+          const btn = el('button', { className:'btn', textContent:'확인' });
+          btn.addEventListener('click', ()=>{
+            Number(input.value)===ans ? done() : fail('오답');
+          });
+          wrap.append(q, input, btn); root.appendChild(wrap); input.focus();
+          return ()=>{};
+        }
+      },
+
+      // 5) 3x3 Sliding Puzzle — 1~8 순서 맞추기
+      puzzle: {
+        name: '슬라이딩 퍼즐: 1→8 순서로 정렬',
+        start(root, done, fail){
+          const cont = el('div', { className:'puzzle' });
+          let board = solvableBoard();
+
+          function draw(){
+            cont.innerHTML='';
+            board.forEach((n, i)=>{
+              const d = el('div', { className:'tile'+(n===0?' blank':''), textContent: n? String(n): '' });
+              d.addEventListener('click', ()=> move(i));
+              cont.appendChild(d);
+            });
+          }
+          function move(idx){
+            const b = board.indexOf(0); // blank idx
+            const neigh = neighbors(b);
+            if(!neigh.includes(idx)) return;
+            [board[b], board[idx]] = [board[idx], board[b]];
+            draw(); if(isSolved()) done();
+          }
+          function isSolved(){
+            for(let i=0;i<8;i++){ if(board[i]!==i+1) return false; } return board[8]===0;
+          }
+          function neighbors(i){
+            const r=Math.floor(i/3), c=i%3; const arr=[];
+            if(r>0) arr.push(i-3); if(r<2) arr.push(i+3); if(c>0) arr.push(i-1); if(c<2) arr.push(i+1); return arr;
+          }
+          function solvableBoard(){
+            const arr=[1,2,3,4,5,6,7,8,0]; // start solved then shuffle by legal moves
+            let blank=8;
+            for(let k=0;k<80;k++){
+              const ns = neighbors(blank); const pick = choice(ns);
+              [arr[blank], arr[pick]]=[arr[pick], arr[blank]]; blank=pick;
+            }
+            return arr;
+          }
+          root.appendChild(cont); draw();
+          return ()=>{};
+        }
+      },
+    };
+
+    /********************
+     * 부트스트랩
+     ********************/
+    ui.btnStart.addEventListener('click', startSession);
+    ui.btnRetry.addEventListener('click', startSession);
   </script>
 </body>
 </html>
