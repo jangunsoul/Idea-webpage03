@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>나는 인간이다!</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    #gameArea { display: none; }
+    #rewardArea { font-size: 20px; margin-bottom: 20px; }
+    #timer { font-size: 18px; color: red; margin: 10px; }
+    .hidden { display: none; }
+    button { padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>나는 인간이다!</h1>
+
+  <div id="rewardArea">이번 스테이지 보상: 🪙 100 MemeCoin</div>
+  <button id="startBtn">START</button>
+
+  <div id="gameArea">
+    <div id="timer">제한시간: <span id="timeLeft">10</span>초</div>
+    <div id="gameContent"></div>
+    <input type="text" id="answerInput" placeholder="정답 입력">
+    <button id="submitBtn">제출</button>
+  </div>
+
+  <div id="message"></div>
+
+  <script>
+    const games = [
+      { question: "3 + 5 = ?", answer: "8" },
+      { question: "12 - 7 = ?", answer: "5" },
+      { question: "단어 HUMAN을 거꾸로 쓰세요", answer: "NAMUH" }
+    ];
+    let currentGame = 0;
+    let timer;
+    let timeLeft = 10;
+
+    const startBtn = document.getElementById("startBtn");
+    const gameArea = document.getElementById("gameArea");
+    const gameContent = document.getElementById("gameContent");
+    const answerInput = document.getElementById("answerInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const message = document.getElementById("message");
+    const timeLeftSpan = document.getElementById("timeLeft");
+
+    function startGame() {
+      startBtn.style.display = "none";
+      gameArea.style.display = "block";
+      message.innerText = "";
+      loadGame();
+    }
+
+    function loadGame() {
+      if (currentGame >= games.length) {
+        endGame(true);
+        return;
+      }
+      const g = games[currentGame];
+      gameContent.innerText = g.question;
+      answerInput.value = "";
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      timeLeft = 10;
+      timeLeftSpan.innerText = timeLeft;
+      timer = setInterval(() => {
+        timeLeft--;
+        timeLeftSpan.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          endGame(false);
+        }
+      }, 1000);
+    }
+
+    function checkAnswer() {
+      const g = games[currentGame];
+      if (answerInput.value.trim().toUpperCase() === g.answer.toUpperCase()) {
+        clearInterval(timer);
+        currentGame++;
+        if (currentGame < games.length) {
+          message.innerText = "아직 인간임을 증명하지 못했습니다... 다음 문제!";
+          setTimeout(loadGame, 1000);
+        } else {
+          endGame(true);
+        }
+      } else {
+        message.innerText = "오답! 다시 시도하세요.";
+      }
+    }
+
+    function endGame(success) {
+      gameArea.style.display = "none";
+      if (success) {
+        message.innerText = "🎉 축하합니다! 당신은 인간임을 증명했습니다!\n보상 획득: 🪙 100 MemeCoin";
+      } else {
+        message.innerText = "⏰ 실패! AI는 여전히 당신을 의심합니다...";
+        startBtn.style.display = "inline-block";
+      }
+    }
+
+    startBtn.addEventListener("click", startGame);
+    submitBtn.addEventListener("click", checkAnswer);
+  </script>
+</body>
+</html>
